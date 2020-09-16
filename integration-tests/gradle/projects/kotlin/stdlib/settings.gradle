@@ -1,0 +1,5 @@
+apply(from: "../template.settings.gradle.kts")
+rootProject.name = 'kotlin-dokka-stdlib'
+
+include 'kotlin_native'
+include 'kotlin_big'

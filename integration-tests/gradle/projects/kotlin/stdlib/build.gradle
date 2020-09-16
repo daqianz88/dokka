@@ -1,0 +1,423 @@
+import org.jetbrains.dokka.Platform
+
+plugins {
+    id "de.undercouch.download" version "3.4.3"
+    id 'com.github.jk1.tcdeps' version '0.17'
+    id "java"
+    id "org.jetbrains.dokka"
+}
+
+configurations {
+    kotlin_sources
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = "https://dl.bintray.com/kotlin/kotlin-eap" }
+    maven { url = "https://dl.bintray.com/kotlin/kotlin-dev" }
+    jcenter()
+}
+
+task extractAll()
+
+extractAll.dependsOn ':kotlin_big:extractLibs'
+extractAll.dependsOn ':kotlin_big:extractSources'
+extractAll.dependsOn ':kotlin_big:extractKotlinSources'
+extractAll.dependsOn ':kotlin_native:extractKotlinNative'
+
+def pKotlinBig() { return project(':kotlin_big').extensions }
+
+def pKotlinNative() { return project(':kotlin_native').extensions }
+
+task cleanupSources(type: Delete) {
+    dependsOn extractAll
+    doFirst {
+        def base = file("${pKotlinNative().kotlin_native_root}/runtime/src/main/kotlin")
+        delete(files("$base/kotlin/Functions.kt", "$base/kotlin/coroutines/SuspendFunctions.kt",
+                "$base/kotlin/reflect/KFunctions.kt"))
+    }
+}
+
+def outputDir = "$buildDir/dokka"
+
+
+task callDokka() {
+    delete(outputDir)
+    dependsOn = [extractAll, cleanupSources]
+}
+
+gradle.projectsEvaluated {
+    def kotlin_root = pKotlinBig().kotlin_root
+    def kotlin_sources = pKotlinBig().kotlin_sources
+    def kotlin_libs = pKotlinBig().kotlin_libs
+    def kotlin_native_root = pKotlinNative().kotlin_native_root
+    def kotlin_native_linux = pKotlinNative().kotlin_native_bin_linux
+    def kotlin_native_windows = pKotlinNative().kotlin_native_bin_windows
+    def kotlin_native_mac = pKotlinNative().kotlin_native_bin_mac
+    def stdlibIncludeMd = "$kotlin_root/libraries/stdlib/src/Module.md"
+    def stdlibSamples = "$kotlin_root/libraries/stdlib/samples/test"
+    def kotlinTestIncludeMd = "$kotlin_root/libraries/kotlin.test/Module.md"
+
+    def stdlibCommonClasspath = ["$kotlin_libs/kotlin-stdlib-common".toString()]
+    def stdlibJvmClasspath = ["$kotlin_libs/kotlin-stdlib/".toString(), "$kotlin_sources/kotlin-stdlib-jdk7".toString(), "$kotlin_libs/kotlin-stdlib-jdk8/".toString(), "$kotlin_sources/kotlin-stdlib".toString(), "$kotlin_sources/kotlin-stdlib-common".toString(), "$kotlin_root/core/reflection.jvm/src".toString()]
+    def stdlibNativeClasspath = ["$kotlin_native_linux/klib/common/stdlib".toString()]
+    def stdlibJsClasspath = ["$kotlin_libs/kotlin-stdlib-js/".toString()]
+    def kotlinTestCommonClasspath = ["$kotlin_libs/kotlin-test-common".toString()]
+    def kotlinTestJunitClasspath = ["$kotlin_libs/kotlin-test-junit".toString()]
+    def kotlinTestJunit5Classpath = ["$kotlin_libs/kotlin-test-junit5".toString()]
+    def kotlinTestTestngClasspath = ["$kotlin_libs/kotlin-test-testng".toString()]
+    def kotlinTestJsClasspath = ["$kotlin_libs/kotlin-test-js".toString()]
+    def kotlinTestJvmClasspath = ["$kotlin_libs/kotlin-test".toString()]
+
+
+    def stdlibPackageList = new URL("file://$outputDir/kotlin-stdlib/kotlin-stdlib/package-list".toString())
+    def junit5PackageList = new URL("https://junit.org/junit5/docs/current/api/element-list".toString())
+    def kotlinLanguageVersion = "1.4"
+
+    task dokkaStdlib(type: org.jetbrains.dokka.gradle.DokkaTask) {
+        outputDirectory.set(new File(outputDir, "/kotlin-stdlib"))
+        moduleName.set("kotlin-stdlib")
+        dokkaSourceSets {
+            register("kotlin-stdlib-common") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.common)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                noJdkLink.set(true)
+                classpath.setFrom(stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("Common")
+                sourceRoots.from("$kotlin_root/core/builtins/native")
+                sourceRoots.from("$kotlin_root/core/builtins/src")
+                sourceRoots.from("$kotlin_sources/kotlin-stdlib-common")
+            }
+
+            register("kotlin-stdlib-java-common") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                classpath.setFrom(stdlibJvmClasspath + stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("JRE")
+                dependsOn("kotlin-stdlib-common")
+                sourceRoots.from("$kotlin_sources/kotlin-stdlib")
+                sourceRoots.from("$kotlin_root/core/reflection.jvm/src")
+                sourceRoots.from("$kotlin_root/libraries/stdlib/jvm/runtime/kotlin/jvm/annotations")
+                sourceRoots.from("$kotlin_root/libraries/stdlib/jvm/runtime/kotlin/jvm/JvmClassMapping.kt")
+                sourceRoots.from("$kotlin_root/libraries/stdlib/jvm/runtime/kotlin/jvm/PurelyImplements.kt")
+                sourceRoots.from("$kotlin_root/libraries/stdlib/jvm/runtime/kotlin/TypeAliases.kt")
+                sourceRoots.from("$kotlin_root/libraries/stdlib/jvm/runtime/kotlin/text/TypeAliases.kt")
+                perPackageOption {
+                    prefix.set("kotlin.reflect.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.functions")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.experimental.migration")
+                    suppress.set(true)
+                }
+            }
+
+
+            register("kotlin-stdlib-jdk8") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                classpath.setFrom(stdlibJvmClasspath + stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("JRE8")
+                dependsOn("kotlin-stdlib-java-common")
+                dependsOn("kotlin-stdlib-common")
+                sourceRoots.from("$kotlin_sources/kotlin-stdlib-jdk8")
+                perPackageOption {
+                    prefix.set("kotlin.reflect.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.functions")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.experimental.migration")
+                    suppress.set(true)
+                }
+            }
+
+            register("kotlin-stdlib-jdk7") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                classpath.setFrom(stdlibJvmClasspath + stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("JRE7")
+                dependsOn("kotlin-stdlib-java-common")
+                dependsOn("kotlin-stdlib-common")
+                sourceRoots.from("$kotlin_sources/kotlin-stdlib-jdk7")
+                perPackageOption {
+                    prefix.set("kotlin.reflect.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.functions")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.coroutines.experimental.migration")
+                    suppress.set(true)
+                }
+            }
+
+
+            register("kotlin-stdlib-js") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.js)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                noJdkLink.set(true)
+                classpath.setFrom(stdlibJsClasspath + stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("JS")
+                dependsOn("kotlin-stdlib-common")
+
+                sourceRoots.from("$kotlin_sources/kotlin-stdlib-js")
+                perPackageOption {
+                    prefix.set("org.w3c")
+                    reportUndocumented.set(false)
+                }
+                perPackageOption {
+                    prefix.set("org.khronos")
+                    reportUndocumented.set(false)
+                }
+                perPackageOption {
+                    prefix.set("jquery")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.reflect.jvm.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.js.internal")
+                    suppress.set(true)
+                }
+            }
+
+            register("kotlin-stdlib-native") {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.native)
+                includes.from(stdlibIncludeMd.toString())
+                noStdlibLink.set(true)
+                noJdkLink.set(true)
+                classpath.setFrom(stdlibNativeClasspath + stdlibCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+                
+                samples.from(stdlibSamples.toString())
+                displayName.set("Native")
+                dependsOn("kotlin-stdlib-common")
+
+                sourceRoots.from("$kotlin_native_root/Interop/Runtime/src/main/kotlin")
+                sourceRoots.from("$kotlin_native_root/Interop/Runtime/src/native/kotlin")
+                sourceRoots.from("$kotlin_native_root/Interop/JsRuntime/src/main/kotlin")
+                sourceRoots.from("$kotlin_native_root/runtime/src/main/kotlin")
+                perPackageOption {
+                    prefix.set("kotlin.native.internal")
+                    suppress.set(true)
+                }
+                perPackageOption {
+                    prefix.set("kotlin.test")
+                    suppress.set(true)
+                }
+            }
+        }
+    }
+
+    task dokkaKotlinTest(type: org.jetbrains.dokka.gradle.DokkaTask) {
+        outputDirectory.set(new File(outputDir, "kotlin.test"))
+        moduleName.set("kotlin.test")
+        dokkaSourceSets {
+            "kotlin-test-common" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.common)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestCommonClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("Common")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/common/src/main/kotlin")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/annotations-common/src/main/kotlin")
+            }
+
+            "kotlin-test-jvm" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestJvmClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("JVM")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/jvm/src/main/kotlin")
+                perPackageOption {
+                    prefix.set("org.junit")
+                    skipDeprecated.set(true)
+                }
+            }
+
+            "kotlin-test-JUnit" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestJunitClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("JUnit")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/junit/src/main/kotlin")
+                externalDocumentationLink {
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                    packageListUrl.set(stdlibPackageList)
+                }
+                externalDocumentationLink {
+                    url.set(new URL("http://junit.org/junit4/javadoc/latest/"))
+                    packageListUrl.set(new URL("http://junit.org/junit4/javadoc/latest/package-list"))
+                }
+            }
+
+            "kotlin-test-JUnit5" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestJunit5Classpath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("JUnit5")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/junit5/src/main/kotlin")
+                externalDocumentationLink {
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                    packageListUrl.set(stdlibPackageList)
+                }
+                externalDocumentationLink {
+                    url.set(new URL("https://junit.org/junit5/docs/current/api/"))
+                    packageListUrl.set(junit5PackageList)
+                }
+            }
+
+            "kotlin-test-TestNG" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.jvm)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestTestngClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("TestNG")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/testng/src/main/kotlin")
+                externalDocumentationLink {
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                    packageListUrl.set(stdlibPackageList)
+                }
+                externalDocumentationLink {
+                    url.set(new URL("https://jitpack.io/com/github/cbeust/testng/master/javadoc/"))
+                    packageListUrl.set(new URL("https://jitpack.io/com/github/cbeust/testng/master/javadoc/package-list"))
+                }
+            }
+
+            "kotlin-test-js" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.js)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestJsClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("JS")
+                sourceRoots.from("$kotlin_root/libraries/kotlin.test/js/src/main/kotlin")
+                perPackageOption {
+                    prefix.set("org.junit")
+                    skipDeprecated.set(true)
+                }
+                externalDocumentationLink {
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                    packageListUrl.set(stdlibPackageList)
+                }
+            }
+
+            "kotlin-test-native" {
+                skipDeprecated.set(false)
+                jdkVersion.set(8)
+                platform.set(Platform.native)
+                includes.from(kotlinTestIncludeMd.toString())
+                classpath.setFrom(kotlinTestJsClasspath)
+                languageVersion.set(kotlinLanguageVersion)
+
+                displayName.set("Native")
+                sourceRoots.from("$kotlin_native_root/runtime/src/main/kotlin/kotlin/test")
+                externalDocumentationLink {
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                    packageListUrl.set(stdlibPackageList)
+                }
+            }
+        }
+    }
+
+
+    callDokka.finalizedBy dokkaStdlib
+    dokkaStdlib.finalizedBy dokkaKotlinTest
+}
+
+tasks {
+    doLast {
+        println(" ##teamcity[publishArtifacts '${outputDir}/kotlin.test => kotlin.test.zip'] ")
+    }
+}
