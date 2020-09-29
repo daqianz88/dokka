@@ -1,0 +1,114 @@
+/*
+ * Copyright 2016-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ */
+
+// Configures generation of JavaDoc & Dokka artifacts
+
+def makeLinkMapping(dokka, projectDir) {
+    dokka.sourceLink {
+        def relPath = rootProject.projectDir.toPath().relativize(projectDir.toPath())
+        localDirectory.set(project.file("src"))
+        remoteUrl.set(new URL("https://github.com/kotlin/kotlinx.coroutines/tree/master/$relPath/src"))
+    }
+}
+
+configurations {
+    dokkaStubs.extendsFrom compileOnly
+    configureKotlinJvmPlatform(dokkaStubs)
+}
+
+apply plugin: 'org.jetbrains.dokka'
+
+tasks.withType(dokkaHtml.getClass()) {
+    dokkaSourceSets {
+        configureEach {
+            jdkVersion.set(8)
+            includes.from('README.md')
+        }
+    }
+}
+
+dependencies {
+    dokkaStubs project(":stdlib-stubs")
+}
+
+
+dokkaHtml {
+    dependsOn(project.configurations.dokkaStubs)
+    dokkaSourceSets {
+        if (project.name != "kotlinx-coroutines-core") {
+            configureEach {
+                externalDocumentationLink {
+                    packageListUrl.set(rootProject.projectDir.toPath().resolve("site/stdlib.package.list").toUri().toURL())
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                }
+                noStdlibLink.set(true)
+            }
+
+        } else {
+            commonMain {
+                makeLinkMapping(it, project.file("common"))
+
+                includes.from('README.md')
+                externalDocumentationLink {
+                    packageListUrl.set(rootProject.projectDir.toPath().resolve("site/stdlib.package.list").toUri().toURL())
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                }
+                noStdlibLink.set(true)
+            }
+            jvmMain {
+                makeLinkMapping(it, project.file("jvm"))
+
+                includes.from('README.md')
+                externalDocumentationLink {
+                    packageListUrl.set(rootProject.projectDir.toPath().resolve("site/stdlib.package.list").toUri().toURL())
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                }
+                noStdlibLink.set(true)
+            }
+            jsMain {
+                makeLinkMapping(it, project.file("js"))
+
+                includes.from('README.md')
+                externalDocumentationLink {
+                    packageListUrl.set(rootProject.projectDir.toPath().resolve("site/stdlib.package.list").toUri().toURL())
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                }
+                noStdlibLink.set(true)
+            }
+            nativeMain {
+                makeLinkMapping(it, project.file("js"))
+
+                includes.from('README.md')
+                externalDocumentationLink {
+                    packageListUrl.set(rootProject.projectDir.toPath().resolve("site/stdlib.package.list").toUri().toURL())
+                    url.set(new URL("https://kotlinlang.org/api/latest/jvm/stdlib/"))
+                }
+                noStdlibLink.set(true)
+            }
+        }
+
+    }
+    if (project.name != "kotlinx-coroutines-core") {
+        dependsOn(project.configurations.compileClasspath)
+        dependsOn(project.sourceSets.main.output)
+        doFirst {
+            // resolve classpath only during execution
+            dokkaSourceSets {
+                configureEach {
+                    classpath.setFrom(project.configurations.dokkaStubs.files)
+                    classpath.from(project.configurations.compileClasspath.files)
+                    classpath.from(project.sourceSets.main.output.files)
+                }
+            }
+        }
+    }
+}
+
+if (project.name == "kotlinx-coroutines-core") {
+    // Custom configuration for MPP modules
+    dependencies {
+        dokkaStubs project(":js-stub") // so that JS library reference can resolve properly
+        dokkaStubs project(":kotlinx-coroutines-core")
+    }
+}
