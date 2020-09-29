@@ -3,11 +3,12 @@ package org.jetbrains.dokka.it.gradle.kotlin
 import org.gradle.testkit.runner.TaskOutcome
 import org.jetbrains.dokka.it.gradle.AbstractGradleIntegrationTest
 import org.jetbrains.dokka.it.gradle.BuildVersions
+import org.jetbrains.dokka.it.gradle.S3Project
 import org.junit.runners.Parameterized
 import java.io.File
 import kotlin.test.*
 
-class SerializationGradleIntegrationTest(override val versions: BuildVersions) : AbstractGradleIntegrationTest() {
+class SerializationGradleIntegrationTest(override val versions: BuildVersions) : AbstractGradleIntegrationTest(), S3Project {
 
     companion object {
         @get:JvmStatic
@@ -17,6 +18,8 @@ class SerializationGradleIntegrationTest(override val versions: BuildVersions) :
             kotlinVersions = listOf("1.4.10")
         )
     }
+
+    override val projectOutputLocation: File by lazy { File(projectDir, "build/dokka/htmlMultiModule") }
 
     @BeforeTest
     fun prepareProjectFiles() {
@@ -31,10 +34,9 @@ class SerializationGradleIntegrationTest(override val versions: BuildVersions) :
 
         assertEquals(TaskOutcome.SUCCESS, assertNotNull(result.task(":dokkaHtmlMultiModule")).outcome)
 
-        val dokkaOutputDir = File(projectDir, "build/dokka/htmlMultiModule")
-        assertTrue(dokkaOutputDir.isDirectory, "Missing dokka output directory")
+        assertTrue(projectOutputLocation.isDirectory, "Missing dokka output directory")
 
-        dokkaOutputDir.allHtmlFiles().forEach { file ->
+        projectOutputLocation.allHtmlFiles().forEach { file ->
             assertContainsNoErrorClass(file)
             assertNoUnresolvedLinks(file)
 //            assertNoHrefToMissingLocalFileOrDirectory(file)

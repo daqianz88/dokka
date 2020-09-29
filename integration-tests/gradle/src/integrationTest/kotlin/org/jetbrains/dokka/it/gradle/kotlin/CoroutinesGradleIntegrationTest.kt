@@ -19,6 +19,8 @@ class CoroutinesGradleIntegrationTest(override val versions: BuildVersions) : Ab
         )
     }
 
+    override val projectOutputLocation: File by lazy { File(projectDir, "build/dokka/htmlMultiModule") }
+
     @BeforeTest
     fun prepareProjectFiles() {
         val templateProjectDir = File("projects/kotlin", "coroutines")
@@ -32,10 +34,9 @@ class CoroutinesGradleIntegrationTest(override val versions: BuildVersions) : Ab
 
         assertEquals(TaskOutcome.SUCCESS, assertNotNull(result.task(":dokkaHtmlMultiModule")).outcome)
 
-        val dokkaOutputDir = File(projectDir, "build/dokka/htmlMultiModule")
-        assertTrue(dokkaOutputDir.isDirectory, "Missing dokka output directory")
+        assertTrue(projectOutputLocation.isDirectory, "Missing dokka output directory")
 
-        dokkaOutputDir.allHtmlFiles().forEach { file ->
+        projectOutputLocation.allHtmlFiles().forEach { file ->
 //            assertContainsNoErrorClass(file)
 //            assertNoUnresolvedLinks(file)
 //            assertNoHrefToMissingLocalFileOrDirectory(file)
@@ -43,6 +44,4 @@ class CoroutinesGradleIntegrationTest(override val versions: BuildVersions) : Ab
             assertNoEmptySpans(file)
         }
     }
-
-    override val projectOutputLocation: File by lazy { File(projectDir, "build/dokka/htmlMultiModule") }
 }
