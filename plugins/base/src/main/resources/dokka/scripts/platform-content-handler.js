@@ -18,6 +18,10 @@ window.addEventListener('load', () => {
     initTabs()
     handleAnchor()
     initHidingLeftNavigation()
+
+    document.getElementById('main').addEventListener("scroll", (e) => {
+        document.getElementsByClassName("navigation-wrapper")[0].classList.toggle("sticky-navigation", e.target.scrollTop > 300)
+    })
 })
 
 const initHidingLeftNavigation = () => {
