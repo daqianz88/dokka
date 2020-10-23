@@ -49,7 +49,7 @@ class JavadocParser(
                         it.second
                     )
                 }
-                "deprecated" -> Deprecated(wrapTagIfNecessary(convertJavadocElements(tag.dataElements.toList())))
+                "deprecated" -> Deprecated(wrapTagIfNecessary(convertJavadocElements(tag.authorContentElements())))
                 else -> null
             }
         })

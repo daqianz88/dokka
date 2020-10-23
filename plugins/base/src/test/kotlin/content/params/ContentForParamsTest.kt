@@ -246,6 +246,54 @@ class ContentForParamsTest : AbstractCoreTest() {
     }
 
     @Test
+    fun `author delimetered by space2`() {
+        testInline(
+            """
+            |/src/main/java/sample/DocGenProcessor.java
+            |package sample;
+            |/**
+            | * Return the target fragment set by {@link #setTargetFragment}.
+            | *
+            | * @deprecated Instead of using a target fragment to pass results, use
+            | * {@link androidx.fragment.app.FragmentManager#setFragmentResult(java.lang.String,android.os.Bundle) FragmentManager#setFragmentResult(String, Bundle)} to deliver results to
+            | * {@link androidx.fragment.app.FragmentResultListener FragmentResultListener} instances registered by other fragments via
+            | * {@link androidx.fragment.app.FragmentManager#setFragmentResultListener(java.lang.String,androidx.lifecycle.LifecycleOwner,androidx.fragment.app.FragmentResultListener) FragmentManager#setFragmentResultListener(String, LifecycleOwner,
+            | * FragmentResultListener)}.
+            | */
+            | public class DocGenProcessor { }
+            """.trimIndent(), testConfiguration
+        ) {
+            pagesTransformationStage = { module ->
+                val classPage = module.children.single { it.name == "sample" }.children.single { it.name == "DocGenProcessor" } as ContentPage
+                classPage.content.assertNode {
+                    group {
+                        header { +"DocGenProcessor" }
+                        platformHinted {
+                            group {
+                                skipAllNotMatching() //Signature
+                            }
+                            group {
+                                comment { +"Return the target fragment set by setTargetFragment." }
+                            }
+                            group {
+                                header(4) { +"Deprecated" }
+                                comment {
+                                    +"Instead of using a target fragment to pass results, use "
+                                    +"FragmentManager#setFragmentResult(String, Bundle)"
+                                    +" to deliver results to FragmentResultListener instances registered by other fragments via "
+                                    +"FragmentManager#setFragmentResultListener(String, LifecycleOwner,FragmentResultListener)"
+                                    +"."
+                                }
+                            }
+                        }
+                    }
+                    skipAllNotMatching()
+                }
+            }
+        }
+    }
+
+    @Test
     fun `undocumented parameter and other tags`() {
         testInline(
             """
