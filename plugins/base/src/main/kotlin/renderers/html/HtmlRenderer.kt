@@ -584,6 +584,7 @@ open class HtmlRenderer(
 
     override fun FlowContent.buildNavigation(page: PageNode) =
         div("navigation-wrapper") {
+            id = "navigation-wrapper"
             div(classes = "breadcrumbs") {
                 val path = locationProvider.ancestors(page).filterNot { it is RendererSpecificPage }.asReversed()
                 if (path.isNotEmpty()) {

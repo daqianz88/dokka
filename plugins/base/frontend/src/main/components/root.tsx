@@ -26,21 +26,18 @@ const renderOnThisPage = () => {
     const unique = _.uniqBy(entries, ({label}) => label)
     if (unique.length) {
       const element = document.createElement('div')
-      render(<PageSummary entries={unique} />, element)
+      render(<PageSummary entries={unique} containerId={'main'} offsetComponentId={'navigation-wrapper'}/>, element)
       e.appendChild(element)
     }
   }
 }
 
+const renderMainSearch = () => {
+  render(<App />, document.getElementById('searchBar'));
+}
+
 let renderApp = () => {
-  console.log('render')
-  const appEl = document.getElementById('searchBar');
-  const rootEl = document.createElement('div');
-  render(
-    <App />,
-    rootEl
-  );
-  appEl.appendChild(rootEl);
+  renderMainSearch();
   renderNavigationPane();
   renderOnThisPage();
 
